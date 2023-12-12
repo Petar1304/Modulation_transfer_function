@@ -100,8 +100,19 @@ def img_desc(img):
     
     contrast = np.mean(black_region) - np.mean(white_region)
 
+    black_var = np.var(black_region)
+    white_var = np.var(white_region)
+
+    if black_var == 0:
+        snr = 0
+    else:
+        snr = 20 * np.log10(np.sum(white_region) / black_var) 
+    # print(snr)
+
+    # [mtf, _] = MTF(img, slope)
+    # index = np.where(mtf < 0.1)[0][0]
 
 if __name__ == '__main__':
-    img = cv2.imread('fantom01.bmp', 0)
+    img = cv2.imread('images/fantom01.bmp', 0)
     MTF(img, 1)
     img_desc(img)

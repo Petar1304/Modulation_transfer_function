@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from scipy.fftpack import fft
+import os
 
 M = 512
 dw = 1 / M
 s = 500 * 1e-6
 
-def MTF(img, slope):
-    
+def MTF(img):
+    # nalazenje pragova 
     for i in range(512):
         if img[10, i] > 50:
             x11 = i
@@ -33,9 +34,6 @@ def MTF(img, slope):
             y22 = img[500, i]
             break
     
-    maksimum = np.max(img) 
-    minimum = np.min(img)
-
     k1 = (y12 - y11) / (x12 - x11)
     # m1 = (maksimum - y11) / k1 + x11
     m1 = (125 - y11) / k1 + x11
@@ -43,12 +41,7 @@ def MTF(img, slope):
     k2 = (y22 - y21) / (x22 - x21)
     # m2 = (maksimum - y21) / k2 + x21
     m2 = (125 - y21) / k2 + x21
-
-    # k1 = (b2-b1)/(a2-a1);
-    # sredina1 = (maks-minn)/k1;
-    # k2 = (b4-b3)/(a4-a3);
-    # sredina2 = (maks-minn)/k2;
-
+    
     br = 0
     for i in range(512):
         if img[500, i] > 150:
@@ -56,13 +49,9 @@ def MTF(img, slope):
         if img[10, i] > 150:
             break
 
-    d = np.abs(m1 - m2)
-    print('d1 = ', d)
-    d2 = (br * 0.5)
-    print('d2 = ', d2)
-
-    # dx = d / 489; 
-    dx = d2 / 489; 
+    # d = np.abs(m1 - m2)
+    d = br * 0.5
+    dx = d / 489; 
 
     if x11 == x12 and x21 == x22:
         N = 1
@@ -72,37 +61,25 @@ def MTF(img, slope):
     # ESF
     img_cut = img[:N, :]
 
-    if slope == 1:
+    if N == 1:
         esf = np.reshape(img_cut.T, N * 512)
-        w = np.arange(0, N * M / 2 * dw, dw)
+        # w = np.arange(0, N * M / 2 * dw, dw)
     else:
         # ako nemamo slope uzimamo samo jedan red na sredini
         esf = img[250, :]
-        w = np.arange(0, (M / 2 - 1) * dw, dw)
-
-    print('dw = ', dw)
-    print('N = ', N)
+        # w = np.arange(0, (M / 2 - 1) * dw, dw)
 
     # LSF
-    lsf = np.gradient(esf) # , dw)
+    lsf = np.gradient(esf)
 
     # MTF
     mtf = fft(lsf)
     mtf_normalized = np.abs(mtf[: ((N * 512) // 2)] / mtf[0])
-
-    mtf_normalized = mtf_normalized[:M]
-    # MTF /= MTF[1]
-    # MTF = np.abs(MTF)
-    # MTF = MTF[:len(w)]
-    # MTF = MTF[:len(MTF) // 2]
-    
-    print(len(mtf_normalized))
-    print(np.max(mtf_normalized))
-    print(np.min(mtf_normalized))
-
+    mtf_normalized = mtf_normalized[:M//2]
     return mtf_normalized
 
-def img_params(img):
+
+def img_params(img, img_number):
     # slope-> poredimo prvu pojavu belog piksela u prvom i poslednjem redu
     first = 0
     last = 0
@@ -141,28 +118,56 @@ def img_params(img):
     std_black = np.sqrt(np.sum(black_var) / black_region.size)
 
     snr = 20 * np.log10(np.sum(white_var) / std_black) 
-    # index = np.where(mtf < 0.1)[0][0]
 
     return {
+        'img_number': img_number,
         'slope': slope,
         'contrast': contrast,
         'snr': snr,
         'blur': blur,
     }
 
-def plot(x, y, title: str, labelX: str, labelY: str):
+def subplot_img_mtf(img, x, y, title: str = ''):
+    ideal_mtf = np.abs(np.sinc(x))
     plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(img, cmap='gray')
+    plt.subplot(1, 2, 2)
     plt.title(title)
-    plt.show(x, y)
+    plt.plot(x, y)
+    plt.plot(x, ideal_mtf)
+    plt.xlabel('ciklusa/mm')
+    plt.ylabel('MTF')
     plt.grid()
+    plt.show()
+
+def test():
+    img = cv2.imread(f'images/fantom11.bmp', 0)
+    params = img_params(img)
+    mtf = MTF(img)
+    plt.plot(mtf)
+    plt.show()
 
 if __name__ == '__main__':
-    img = cv2.imread('images/fantom01.bmp', 0)
-    params = img_params(img)
-    mtf = MTF(img, 1)
 
-    # w = np.linspace(0, 1, M)
-    w = np.linspace(0, 512, len(mtf))
-    print(params)
-    plt.plot(w, mtf)
-    plt.show()
+    file_list = os.listdir('images')
+    params_list = []
+
+    w = np.linspace(0, 2, 256)
+    ideal_mtf = np.sinc(w)
+
+    for file in file_list:
+        img = cv2.imread(f'images/{file}', 0)
+        img_number = int(file[6:8])
+        params = img_params(img, img_number)
+        params_list.append(params)
+
+        mtf = MTF(img)
+        subplot_img_mtf(img, w, mtf, '')
+
+   
+    # ideal = np.sinc(np.linspace(0, 512, 100))
+    # plt.plot(ideal)
+    # plt.show()
+
+

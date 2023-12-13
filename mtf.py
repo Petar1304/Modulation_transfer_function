@@ -150,6 +150,12 @@ def img_params(img):
         'blur': blur,
     }
 
+def plot(x, y, title: str, labelX: str, labelY: str):
+    plt.figure()
+    plt.title(title)
+    plt.show(x, y)
+    plt.grid()
+
 if __name__ == '__main__':
     img = cv2.imread('images/fantom01.bmp', 0)
     params = img_params(img)
@@ -159,4 +165,4 @@ if __name__ == '__main__':
     w = np.linspace(0, 512, len(mtf))
     print(params)
     plt.plot(w, mtf)
-    p
+    plt.show()

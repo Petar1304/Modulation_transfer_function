@@ -37,82 +37,126 @@ def MTF(img, slope):
     minimum = np.min(img)
 
     k1 = (y12 - y11) / (x12 - x11)
-    m1 = (maksimum - y11) / k1 + x11
+    # m1 = (maksimum - y11) / k1 + x11
+    m1 = (125 - y11) / k1 + x11
 
     k2 = (y22 - y21) / (x22 - x21)
-    m2 = (maksimum - y21) / k2 + x21
-    
+    # m2 = (maksimum - y21) / k2 + x21
+    m2 = (125 - y21) / k2 + x21
+
+    # k1 = (b2-b1)/(a2-a1);
+    # sredina1 = (maks-minn)/k1;
+    # k2 = (b4-b3)/(a4-a3);
+    # sredina2 = (maks-minn)/k2;
+
+    br = 0
+    for i in range(512):
+        if img[500, i] > 150:
+            br += 1
+        if img[10, i] > 150:
+            break
+
     d = np.abs(m1 - m2)
-    
-    dx = d / 489; 
+    print('d1 = ', d)
+    d2 = (br * 0.5)
+    print('d2 = ', d2)
+
+    # dx = d / 489; 
+    dx = d2 / 489; 
 
     if x11 == x12 and x21 == x22:
         N = 1
     else:
         N = int(np.floor(1 / dx))
 
-    # mala slika
+    # ESF
     img_cut = img[:N, :]
 
     if slope == 1:
-        ESF = np.reshape(img_cut, N * 512)
+        esf = np.reshape(img_cut.T, N * 512)
         w = np.arange(0, N * M / 2 * dw, dw)
     else:
-        ESF = img[250, :]
+        # ako nemamo slope uzimamo samo jedan red na sredini
+        esf = img[250, :]
         w = np.arange(0, (M / 2 - 1) * dw, dw)
 
-    # print(x11, x12, x21, x22)
-    # print(y11, y12, y21, y22)
-    # print(k1, k2, m1, m2)
-    # print(f'X11 = {x11} Y11 = {y11} X21 = {x21} Y21 = {y21}')
+    print('dw = ', dw)
+    print('N = ', N)
 
     # LSF
-    LSF = np.gradient(ESF, dw)
+    lsf = np.gradient(esf) # , dw)
 
     # MTF
-    MTF = fft(LSF)
-    MTF /= MTF[0]
-    MTF = np.abs(MTF)
-    MTF = MTF[:len(w)]
-    return MTF
+    mtf = fft(lsf)
+    mtf_normalized = np.abs(mtf[: ((N * 512) // 2)] / mtf[0])
 
-def img_desc(img):
-    contrast = []
-    blur = []
-    snr = []
+    mtf_normalized = mtf_normalized[:M]
+    # MTF /= MTF[1]
+    # MTF = np.abs(MTF)
+    # MTF = MTF[:len(w)]
+    # MTF = MTF[:len(MTF) // 2]
+    
+    print(len(mtf_normalized))
+    print(np.max(mtf_normalized))
+    print(np.min(mtf_normalized))
 
+    return mtf_normalized
+
+def img_params(img):
     # slope-> poredimo prvu pojavu belog piksela u prvom i poslednjem redu
     first = 0
     last = 0
+    slope = 0
 
     for i in range(512):
-        if img[0, i] < 100: # prag za beli pixel je 100
+        if img[0, i] > 100: # prag za beli pixel je 100
             first = i
-        if img[511, i] < 100:
-            last = i
-        if first != last: # ????
-            slope = 1
             break
+        if img[511, i] > 100:
+            last = i
+            break
+    if first != last:
+        slope = 1
+
+    # Blur
+    for i in range(512):
+        if img[100, i] > 40:
+            first = i
+            break
+    for i in range(first, 512):
+        if img[100, i] > 220:
+            second = i
+            break
+    blur = second - first
 
     # Contrast
     black_region = img[30:120, 30:120]
     white_region = img[390:480, 390:480]
-    
+
     contrast = np.mean(black_region) - np.mean(white_region)
 
-    black_var = np.var(black_region)
-    white_var = np.var(white_region)
+    black_var = (black_region - np.mean(black_region))**2
+    white_var = (white_region - np.mean(white_region))**2
 
-    if black_var == 0:
-        snr = 0
-    else:
-        snr = 20 * np.log10(np.sum(white_region) / black_var) 
-    # print(snr)
+    std_black = np.sqrt(np.sum(black_var) / black_region.size)
 
-    # [mtf, _] = MTF(img, slope)
+    snr = 20 * np.log10(np.sum(white_var) / std_black) 
     # index = np.where(mtf < 0.1)[0][0]
+
+    return {
+        'slope': slope,
+        'contrast': contrast,
+        'snr': snr,
+        'blur': blur,
+    }
 
 if __name__ == '__main__':
     img = cv2.imread('images/fantom01.bmp', 0)
-    MTF(img, 1)
-    img_desc(img)
+    params = img_params(img)
+    mtf = MTF(img, 1)
+
+    # w = np.linspace(0, 1, M)
+    w = np.linspace(0, 512, len(mtf))
+    print(params)
+    plt.plot(w, mtf)
+    p

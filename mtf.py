@@ -76,7 +76,6 @@ def MTF(img):
     mtf_normalized = mtf_normalized[:M//2]
     return mtf_normalized
 
-
 def img_params(img, img_number):
     # slope-> poredimo prvu pojavu belog piksela u prvom i poslednjem redu
     first = 0
@@ -104,20 +103,6 @@ def img_params(img, img_number):
         'snr': snr,
         'blur': blur,
     }
-
-def subplot_img_mtf(img, x, y, title: str = ''):
-    ideal_mtf = np.abs(np.sinc(x))
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(img, cmap='gray')
-    plt.subplot(1, 2, 2)
-    plt.title(title)
-    plt.plot(x, y)
-    plt.plot(x, ideal_mtf)
-    plt.xlabel('ciklusa/mm')
-    plt.ylabel('MTF')
-    plt.grid()
-    plt.show()
 
 def analyze(params_list):
     contrasts = [p['contrast'] for p in params_list]
@@ -150,18 +135,34 @@ def analyze(params_list):
         params_desc.append(param_desc)
     return params_desc
 
+def subplot_img_mtf(img, x, y, title: str = ''):
+    ideal_mtf = np.abs(np.sinc(x))
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(img, cmap='gray')
+    plt.subplot(1, 2, 2)
+    plt.title(title)
+    plt.plot(x, y)
+    plt.plot(x, ideal_mtf)
+    plt.xlabel('ciklusa/mm')
+    plt.ylabel('MTF')
+    plt.grid()
+    plt.show()
+
 def print_params(params):
     print('phantom number: ', params['num'])
     print('cutoff freq: ', params['cutoff'])
     print('slope: ', params['slope'])
     print('blur: ', params['blur'])
     print('snr: ', params['snr'])
+    print()
 
 if __name__ == '__main__':
 
     file_list = os.listdir('images')
-    params_list = []
 
+    params_list = []
+    
     w = np.linspace(0, w_param, 256)
     ideal_mtf = np.abs(np.sinc(w/2))
 
@@ -172,7 +173,6 @@ if __name__ == '__main__':
         params['img'] = img
         params['mtf'] = MTF(img)
         params_list.append(params)
-        # subplot_img_mtf(params['img'], w, params['mtf'], '')
 
     params_list_desc = analyze(params_list)
 
@@ -189,8 +189,8 @@ if __name__ == '__main__':
         while (params_list_desc[choice]['contrast'] != params_list_desc[idx]['contrast'] and params_list_desc[choice]['blur'] == params_list_desc[idx]['blur'] and params_list_desc[choice]['snr'] == params_list_desc[idx]['snr']):
             idx = random.choice(range(16))
 
-        # print_params(params_list_desc[choice])
-        # print_params(params_list_desc[idx])
+        print_params(params_list_desc[choice])
+        print_params(params_list_desc[idx])
 
         plt.figure()
         plt.title(f'mtf {choice} i {idx}')
@@ -204,4 +204,3 @@ if __name__ == '__main__':
         plt.show()
 
         choice = int(input('Izaberi broj fantoma >> '))
-
